@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@main
         with:
           repository: Kyuofox/Action_Build_ROM
-          ref: main
+          # 拿掉原本的 ref: main，改用預設分支，或者如果你確定它是 master，可以改成 master
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: 準備所需環境
         run: |
