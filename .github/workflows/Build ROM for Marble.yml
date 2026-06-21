@@ -32,9 +32,9 @@ jobs:
       - name: 檢出倉庫文件
         uses: actions/checkout@main
         with:
-          repository: Kyuofox/Action_Build_ROM
-          # 【修復】強制指定抓取 main 分支，確保根目錄有 make.sh
-          ref: main
+          # 【關鍵修復】改為抓取你自己的倉庫，不要再去抓 Kyuofox 的
+          # 請把下面的 "你的GitHub帳號" 修改為你實際的 GitHub ID（例如 RBeeChen）
+          repository: "RBeeChen/Action_Build_ROM"
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 準備所需環境
@@ -49,7 +49,7 @@ jobs:
           # 建立工具箱需要的目錄結構
           mkdir -p "$GITHUB_WORKSPACE"/workspace/vendor
           
-          # 【修復】參數加上雙引號，防止網址內的 & 符號斷開指令
+          # 參數加上雙引號，防止網址內的 & 符號斷開指令
           echo "正在下載你上傳的獨立 Vendor 壓縮包..."
           aria2c -x16 -s16 -d "$GITHUB_WORKSPACE"/workspace/vendor -O vendor_finish.zip "${{ github.event.inputs.MY_VENDOR_URL }}"
           
@@ -59,7 +59,7 @@ jobs:
           rm -f vendor_finish.zip
           cd "$GITHUB_WORKSPACE"
           
-          # 【修復】呼叫 make.sh 時，所有動態參數全部加上雙引號
+          # 呼叫 make.sh 時，所有動態參數全部加上雙引號
           sudo bash "$GITHUB_WORKSPACE"/make.sh "${{ github.event.inputs.PORT_URL }}" "${{ github.event.inputs.MY_VENDOR_URL }}" "${{ github.event.inputs.DECRYPTION }}" "false" "$GITHUB_ENV" "$GITHUB_WORKSPACE"
 
       - name: 處理與切割 ROM
