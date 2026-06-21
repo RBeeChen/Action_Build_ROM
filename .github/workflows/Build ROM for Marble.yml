@@ -1,40 +1,24 @@
-name: Build ROM for Amber
+name: Build ROM for Amber (Direct Vendor Link)
 on:
   workflow_dispatch:
     inputs:
-      URL:
-        description: "移植包下載地址 (例如你想移植的其他機型 LineageOS/crDroid ZIP 連結)"
+      PORT_URL:
+        description: "第三方 ROM 移植包下載直鏈 (例如 LineageOS/crDroid 的 ZIP 連結)"
         required: true
-      VENDOR_URL:
-        description: "底包下載地址"
+      MY_VENDOR_URL:
+        description: "你放在 GitHub Release 的 vendor_finish.zip 下載直鏈"
         required: true
-        default: 'https://bkt-sgp-miui-ota-update-alisgp.oss-ap-southeast-1.aliyuncs.com/OS1.0.10.0.UKWMIXM/agate-ota_full-OS1.0.10.0.UKWMIXM-user-14.0-7170db79f6.zip'
       DECRYPTION:
-        description: '去除強制加密'
+        description: '是否去除強制加密'
         required: true
         type: boolean
         default: true
-      PERFECTICON:
-        description: '啟用完美圖標 (若非 MIUI/HyperOS 可選 false)'
-        required: true
-        type: boolean
-        default: false
-      GithubRelease:
-        description: "Github Release"
-        required: true
-        type: boolean
-        default: true
-      OneDrive:
-        description: "OneDrive"
-        required: true
-        type: boolean
-        default: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 最大化構建環境
+      - name: 最大化構建環境空間
         uses: easimon/maximize-build-space@master
         with:
           swap-size-mb: 8192
@@ -44,35 +28,55 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
           remove-codeql: 'true'
+
       - name: 檢出倉庫文件
         uses: actions/checkout@main
         with:
           repository: Kyuofox/Action_Build_ROM
-          # 拿掉原本的 ref: main，改用預設分支，或者如果你確定它是 master，可以改成 master
+          # 【修復】強制指定抓取 main 分支，確保根目錄有 make.sh
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 準備所需環境
         run: |
           sudo timedatectl set-timezone Asia/Taipei
-          sudo apt-get install python3 aria2 p7zip-full zstd
+          sudo apt-get update
+          sudo apt-get install -y python3 aria2 p7zip-full zstd
           sudo pip install google protobuf
-      - name: 構建 ROM
+
+      - name: 執行 ROM 移植構建 (直接注入你的 Vendor)
         run: |
-          sudo bash "$GITHUB_WORKSPACE"/make.sh ${{ github.event.inputs.URL }} ${{ github.event.inputs.VENDOR_URL }} ${{ github.event.inputs.DECRYPTION }} ${{ github.event.inputs.PERFECTICON }} $GITHUB_ENV $GITHUB_WORKSPACE
-      - name: 處理 ROM
+          # 建立工具箱需要的目錄結構
+          mkdir -p "$GITHUB_WORKSPACE"/workspace/vendor
+          
+          # 【修復】參數加上雙引號，防止網址內的 & 符號斷開指令
+          echo "正在下載你上傳的獨立 Vendor 壓縮包..."
+          aria2c -x16 -s16 -d "$GITHUB_WORKSPACE"/workspace/vendor -O vendor_finish.zip "${{ github.event.inputs.MY_VENDOR_URL }}"
+          
+          # 解壓你的 vendor_finish.zip 到指定目錄
+          cd "$GITHUB_WORKSPACE"/workspace/vendor
+          unzip vendor_finish.zip
+          rm -f vendor_finish.zip
+          cd "$GITHUB_WORKSPACE"
+          
+          # 【修復】呼叫 make.sh 時，所有動態參數全部加上雙引號
+          sudo bash "$GITHUB_WORKSPACE"/make.sh "${{ github.event.inputs.PORT_URL }}" "${{ github.event.inputs.MY_VENDOR_URL }}" "${{ github.event.inputs.DECRYPTION }}" "false" "$GITHUB_ENV" "$GITHUB_WORKSPACE"
+
+      - name: 處理與切割 ROM
         run: |
           mkdir -p "$GITHUB_WORKSPACE"/GithubRelease
           cd "$GITHUB_WORKSPACE"/GithubRelease
           sudo split -b 1536M -d "$GITHUB_WORKSPACE"/zip/${{ env.rom_name }} ${{ env.rom_name }}
           cd "$GITHUB_WORKSPACE"
           touch file.log
-          echo -e "移植機型: ${{ env.model }}\n\n底包版本: ${{ env.vendor_os_version }}\n底包安全補丁版本: ${{ env.vendor_security_patch }}\n底包基線版本: ${{ env.origin_base_line}}\n底包vendor基線版本: ${{ env.vendor_base_line}}\n\n移植包版本: ${{ env.port_os_version }}\n移植包安全補丁版本: ${{ env.port_security_patch }}\n移植包基線版本: ${{ env.port_base_line }}" > file.log
-      - if: ${{ github.event.inputs.GithubRelease == 'true' }}
-        name: 上傳到 Github Release
+          echo -e "Xiaomi 11T 快速移植報告\n\n使用客製化 Vendor 驅動\n移植包版本: ${{ env.port_os_version }}" > file.log
+
+      - name: 上傳到 Github Release
         uses: ncipollo/release-action@main
         with:
           artifacts: ${{ github.workspace }}/GithubRelease/*
-          name: ${{ env.port_os_version }}
-          tag: ${{ env.port_os_version }}
+          name: "Xiaomi-11T-Amber-FastBuild-${{ env.port_os_version }}"
+          tag: "${{ env.port_os_version }}-${{ github.run_number }}"
           bodyFile: "${{ github.workspace }}/file.log"
           allowUpdates: true
           artifactErrorsFailBuild: true
