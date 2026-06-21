@@ -51,7 +51,7 @@ jobs:
           
           # 參數加上雙引號，防止網址內的 & 符號斷開指令
           echo "正在下載你上傳的獨立 Vendor 壓縮包..."
-          aria2c -x16 -s16 -d "$GITHUB_WORKSPACE"/workspace/vendor -O vendor_finish.zip "${{ github.event.inputs.MY_VENDOR_URL }}"
+          aria2c -x16 -s16 -d "$GITHUB_WORKSPACE"/workspace/vendor -o vendor_finish.zip "${{ github.event.inputs.MY_VENDOR_URL }}"
           
           # 解壓你的 vendor_finish.zip 到指定目錄
           cd "$GITHUB_WORKSPACE"/workspace/vendor
