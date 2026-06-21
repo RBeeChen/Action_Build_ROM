@@ -2,10 +2,10 @@ name: Build ROM for Amber (Direct Vendor Link)
 on:
   workflow_dispatch:
     inputs:
-      PORT_URL:
+      URL:
         description: "第三方 ROM 移植包下載直鏈 (例如 LineageOS/crDroid 的 ZIP 連結)"
         required: true
-      MY_VENDOR_URL:
+      VENDOR_URL:
         description: "你放在 GitHub Release 的 vendor_finish.zip 下載直鏈"
         required: true
       DECRYPTION:
@@ -13,6 +13,11 @@ on:
         required: true
         type: boolean
         default: true
+      PERFECTICON:
+        description: '是否啟用完美圖標 (原生系統請選 false)'
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -32,9 +37,7 @@ jobs:
       - name: 檢出倉庫文件
         uses: actions/checkout@main
         with:
-          # 【關鍵修復】改為抓取你自己的倉庫，不要再去抓 Kyuofox 的
-          # 請把下面的 "你的GitHub帳號" 修改為你實際的 GitHub ID（例如 RBeeChen）
-          repository: "RBeeChen/Action_Build_ROM"
+          # 不指定外部 repository，直接檢出當前觸發工作流的本地分支 (android16)
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 準備所需環境
@@ -49,18 +52,17 @@ jobs:
           # 建立工具箱需要的目錄結構
           mkdir -p "$GITHUB_WORKSPACE"/workspace/vendor
           
-          # 參數加上雙引號，防止網址內的 & 符號斷開指令
           echo "正在下載你上傳的獨立 Vendor 壓縮包..."
-          aria2c -x16 -s16 -d "$GITHUB_WORKSPACE"/workspace/vendor -o vendor_finish.zip "${{ github.event.inputs.MY_VENDOR_URL }}"
+          aria2c -x16 -s16 -d "$GITHUB_WORKSPACE"/workspace/vendor -o vendor_finish.zip "${{ github.event.inputs.VENDOR_URL }}"
           
-          # 解壓你的 vendor_finish.zip 到指定目錄
+          # 解壓你的 vendor_finish.zip 到目標目錄
           cd "$GITHUB_WORKSPACE"/workspace/vendor
           unzip vendor_finish.zip
           rm -f vendor_finish.zip
           cd "$GITHUB_WORKSPACE"
           
-          # 呼叫 make.sh 時，所有動態參數全部加上雙引號
-          sudo bash "$GITHUB_WORKSPACE"/make.sh "${{ github.event.inputs.PORT_URL }}" "${{ github.event.inputs.MY_VENDOR_URL }}" "${{ github.event.inputs.DECRYPTION }}" "false" "$GITHUB_ENV" "$GITHUB_WORKSPACE"
+          # 呼叫本地的 make.sh，並加上雙引號防禦網址特殊符號
+          sudo bash "$GITHUB_WORKSPACE"/make.sh "${{ github.event.inputs.URL }}" "${{ github.event.inputs.VENDOR_URL }}" "${{ github.event.inputs.DECRYPTION }}" "${{ github.event.inputs.PERFECTICON }}" $GITHUB_ENV $GITHUB_WORKSPACE
 
       - name: 處理與切割 ROM
         run: |
